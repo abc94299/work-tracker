@@ -174,6 +174,7 @@ body { font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif
 <body>
 
 <!-- Lock Screen -->
+<!-- [DEV] 上線時改回 display:flex -->
 <div id="lockScreen" style="display:none;position:fixed;inset:0;z-index:9999;background:var(--bg);align-items:center;justify-content:center;">
   <div style="text-align:center;width:280px;">
     <div style="font-size:40px;margin-bottom:16px;">🔒</div>
@@ -190,6 +191,7 @@ body { font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif
   </div>
 </div>
 
+<!-- [DEV] 上線時改回 display:none -->
 <div id="appMain" style="">
 <div class="header">
   <h1>工作追蹤</h1>
@@ -524,7 +526,7 @@ function fmtShort(iso){if(!iso)return'';const d=new Date(iso);return`${d.getMont
 // Password Lock
 async function hashPwd(pwd){const buf=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(pwd));return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');}
 function initLock(){
-  // 開發階段：跳過密碼鎖
+  // [DEV] 開發階段跳過密碼鎖，上線時刪除下面兩行即可恢復
   enterApp(); return;
   const stored=localStorage.getItem('worktracker_pwd');
   if(!stored){document.getElementById('lockLabel').textContent='首次使用';document.getElementById('lockPwd').style.display='none';document.getElementById('lockEnterBtn').style.display='none';document.getElementById('lockSetup').style.display='block';}
