@@ -53,6 +53,33 @@ body { font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif
 /* Task list */
 .task-list { padding:8px 12px; padding-bottom:80px; }
 
+/* Desktop: sidebar + 2-col grid */
+.app-body { display:block; }
+.sidebar { display:none; }
+
+@media (min-width:900px) {
+  .app-body { display:flex; gap:0; }
+  .sidebar {
+    display:block; width:180px; flex-shrink:0; position:sticky; top:49px;
+    height:calc(100vh - 49px); overflow-y:auto; background:var(--surface);
+    border-right:1px solid var(--border); padding:12px 0;
+  }
+  .sidebar .nav-title { font-size:10px; color:var(--text2); text-transform:uppercase; letter-spacing:1px; padding:8px 16px 4px; }
+  .sidebar .nav-item {
+    display:flex; align-items:center; gap:8px; padding:8px 16px; font-size:13px;
+    color:var(--text2); cursor:pointer; transition:all .12s; border-left:3px solid transparent;
+  }
+  .sidebar .nav-item:hover { color:var(--text); background:var(--surface2); }
+  .sidebar .nav-item.active { color:var(--accent); border-left-color:var(--accent); background:rgba(108,140,255,.06); }
+  .sidebar .nav-item .nav-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+  .sidebar .nav-item .nav-count { margin-left:auto; font-size:11px; background:var(--surface2); padding:1px 6px; border-radius:8px; }
+  .sidebar .nav-item.has-stale .nav-count { background:rgba(248,113,113,.15); color:var(--red); }
+  .main-content { flex:1; min-width:0; }
+  .task-list { display:grid; grid-template-columns:1fr 1fr; gap:10px; padding:12px 20px; padding-bottom:80px; max-width:none; margin:0; }
+  .task-card { margin-bottom:0; }
+  .filters { display:none; }
+}
+
 /* Task card - hybrid style */
 .task-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:14px; margin-bottom:10px; transition:all .15s; }
 .task-card.stale { border-color:rgba(248,113,113,.4); }
@@ -132,8 +159,11 @@ body { font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif
 
 @media (min-width:640px) {
   .header{padding:14px 24px} .header h1{font-size:20px} .filters{padding:12px 24px}
-  .status-summary{padding:8px 24px} .task-list{padding:8px 20px;max-width:720px;margin:0 auto}
+  .status-summary{padding:8px 24px}
   .modal{border-radius:16px;margin:auto;align-self:center} .fab{bottom:32px;right:32px}
+}
+@media (max-width:899px) {
+  .task-list { max-width:720px; margin:0 auto; }
 }
 </style>
 </head>
@@ -166,9 +196,14 @@ body { font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif
 </div>
 <div class="sync-bar"><span class="sync-dot off" id="syncDot"></span><span id="syncStatus">未連線 Gist</span><a onclick="openSettings()">設定</a></div>
 <div class="stale-banner" id="staleBanner">⚠ 有任務超過 1 天未更新</div>
-<div class="filters" id="filters"></div>
-<div class="status-summary" id="statusSummary"></div>
-<div class="task-list" id="taskList"></div>
+<div class="app-body">
+  <div class="sidebar" id="sidebar"></div>
+  <div class="main-content">
+    <div class="filters" id="filters"></div>
+    <div class="status-summary" id="statusSummary"></div>
+    <div class="task-list" id="taskList"></div>
+  </div>
+</div>
 <button class="fab" onclick="openAddModal()">+</button>
 </div>
 
@@ -275,7 +310,33 @@ function staleText(t) {
 
 // Render
 function render() {
-  renderFilters(); renderSummary(); renderTasks(); renderSyncBar(); renderStaleBanner();
+  renderSidebar(); renderFilters(); renderSummary(); renderTasks(); renderSyncBar(); renderStaleBanner();
+}
+function renderSidebar() {
+  const el = document.getElementById('sidebar');
+  if (!el) return;
+  const statusColors = {'待辦':'var(--text2)','進行中':'var(--accent)','等待中':'var(--yellow)','卡住':'var(--red)','完成':'var(--green)'};
+  let html = '<div class="nav-title">工作線</div>';
+  const allCount = state.tasks.filter(t=>t.status!=='完成').length;
+  const allStale = state.tasks.some(t=>isStale(t));
+  html += `<div class="nav-item${activeFilter==='全部'?' active':''}${allStale?' has-stale':''}" onclick="setFilter('全部')">
+    <span class="nav-dot" style="background:var(--accent)"></span>全部<span class="nav-count">${allCount}</span></div>`;
+  state.streams.forEach(s => {
+    const tasks = state.tasks.filter(t=>t.stream===s&&t.status!=='完成');
+    const count = tasks.length;
+    const hasStale = tasks.some(t=>isStale(t));
+    const dominantStatus = tasks.length ? tasks.sort((a,b)=>{const o={'卡住':0,'進行中':1,'等待中':2,'待辦':3};return(o[a.status]??3)-(o[b.status]??3);})[0].status : '待辦';
+    html += `<div class="nav-item${activeFilter===s?' active':''}${hasStale?' has-stale':''}" onclick="setFilter('${s}')">
+      <span class="nav-dot" style="background:${statusColors[dominantStatus]||'var(--text2)'}"></span>${s}<span class="nav-count">${count}</span></div>`;
+  });
+  html += '<div class="nav-title" style="margin-top:16px">狀態</div>';
+  STATUSES.forEach(s => {
+    const count = state.tasks.filter(t=>t.status===s).length;
+    if (!count && s==='完成') return;
+    html += `<div style="display:flex;align-items:center;gap:8px;padding:4px 16px;font-size:12px;color:var(--text2)">
+      <span class="nav-dot" style="background:${statusColors[s]}"></span>${s}<span style="margin-left:auto">${count}</span></div>`;
+  });
+  el.innerHTML = html;
 }
 function renderStaleBanner() {
   const staleCount = state.tasks.filter(t => isStale(t)).length;
