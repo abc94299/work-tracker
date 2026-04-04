@@ -122,6 +122,10 @@ body { font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif
 .h-item { display:flex; gap:8px; padding:3px 0; font-size:12px; color:var(--text2); }
 .h-item .hd { min-width:32px; font-size:11px; }
 
+/* Goal display */
+.task-goal { margin-top:8px; margin-left:28px; padding:6px 10px; background:rgba(167,139,250,.06); border-left:3px solid var(--purple); border-radius:0 6px 6px 0; font-size:12px; color:var(--purple); display:flex; align-items:flex-start; gap:6px; }
+.task-goal .goal-label { font-weight:600; white-space:nowrap; }
+
 /* Edit button */
 .edit-btn { margin-left:auto; padding:2px 8px; border-radius:4px; border:1px solid var(--border); background:none; color:var(--text2); font-size:11px; cursor:pointer; }
 .edit-btn:hover { color:var(--accent); border-color:var(--accent); }
@@ -213,7 +217,8 @@ body { font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif
   <div class="form-group"><label>任務名稱</label><input id="fTitle" placeholder="輸入任務名稱..."></div>
   <div class="form-group"><label>工作線</label><div class="stream-picker" id="fStream"></div></div>
   <div class="form-group"><label>狀態</label><div class="status-picker" id="fStatus"></div></div>
-  <div class="form-group"><label>說明</label><textarea id="fNote" placeholder="說明、目的、備註..."></textarea></div>
+  <div class="form-group"><label>目標</label><input id="fGoal" placeholder="這個任務要達成什麼？"></div>
+  <div class="form-group"><label>說明</label><textarea id="fNote" placeholder="說明、備註..."></textarea></div>
   <div class="form-actions">
     <button class="btn" onclick="closeModal('taskModal')">取消</button>
     <button class="btn danger" id="deleteBtn" onclick="deleteTask()" style="display:none">刪除</button>
@@ -239,7 +244,8 @@ const STALE_MS = 24 * 60 * 60 * 1000; // 1 day
 
 const INITIAL_TASKS = [
   { id:'a72_dfi', title:'DFI仿真', stream:'An72', status:'進行中',
-    note:'Torx批頭-螺絲介面力學仿真工具\n【目的】互動式仿真取代靜態計算\n【交付】完整互動式HTML仿真工具',
+    goal:'互動式仿真取代靜態計算',
+    note:'Torx批頭-螺絲介面力學仿真工具\n【交付】完整互動式HTML仿真工具',
     updates:[
       {date:'2026-03-24T00:00:00Z',text:'v4 專家仿真初版完成'},
       {date:'2026-03-26T00:00:00Z',text:'v5 推薦矩陣 + v6 傾斜掃描'},
@@ -249,22 +255,26 @@ const INITIAL_TASKS = [
     ],
     created:'2026-03-24T00:00:00Z', updated:'2026-04-04T00:00:00Z' },
   { id:'a72_img', title:'實驗室圖像', stream:'An72', status:'進行中',
-    note:'批頭磨損與入牙點測高計算\n【目的】透過圖像分析批頭磨損狀況與入牙點位置\n【交付】磨損計算+入牙點測高功能',
+    goal:'透過圖像分析批頭磨損狀況與入牙點位置',
+    note:'批頭磨損與入牙點測高計算\n【交付】磨損計算+入牙點測高功能',
     updates:[{date:'2026-04-04T00:00:00Z',text:'專案啟動'}],
     created:'2026-04-04T00:00:00Z', updated:'2026-04-04T00:00:00Z' },
   { id:'a72_listen', title:'ListenAgent', stream:'An72', status:'進行中',
-    note:'產線自動檔案清理工具（Torque資料）\n【目的】自動清理過期Torque資料避免磁碟爆滿\n【交付】部署到Vendor端',
+    goal:'自動清理過期Torque資料避免磁碟爆滿',
+    note:'產線自動檔案清理工具（Torque資料）\n【交付】部署到Vendor端',
     updates:[
       {date:'2026-03-21T00:00:00Z',text:'開發完成 + UserGuide'},
       {date:'2026-04-04T00:00:00Z',text:'20fix 版本完成'},
     ],
     created:'2026-03-21T00:00:00Z', updated:'2026-04-04T00:00:00Z' },
   { id:'a72_cd', title:'成都分類', stream:'An72', status:'進行中',
-    note:'成都工站分類模型，交由金著樂執行\n【目的】確保有序流程推進',
+    goal:'確保有序流程推進',
+    note:'成都工站分類模型，交由金著樂執行',
     updates:[{date:'2026-04-04T00:00:00Z',text:'等DRI回傳數據進行調參'}],
     created:'2026-04-04T00:00:00Z', updated:'2026-04-04T00:00:00Z' },
   { id:'dbg_cgsf', title:'CGSF受力模型', stream:'Debug', status:'等待中',
-    note:'CGSF工站批頭受力分析pipeline（與DFI不同工站，不可混用）\n【目的】建立CGSF專屬磨損/壽命分析\n【交付】全流程整合進PHM UI',
+    goal:'建立CGSF專屬磨損/壽命分析',
+    note:'CGSF工站批頭受力分析pipeline（與DFI不同工站，不可混用）\n【交付】全流程整合進PHM UI',
     updates:[
       {date:'2026-03-10T00:00:00Z',text:'本地端驗證通過'},
       {date:'2026-03-20T00:00:00Z',text:'已交付驗證報告給 DRI+IT'},
@@ -272,14 +282,16 @@ const INITIAL_TASKS = [
     ],
     created:'2026-03-02T00:00:00Z', updated:'2026-04-04T00:00:00Z' },
   { id:'ppt_comp', title:'比賽投影片', stream:'PPT', status:'進行中',
-    note:'技術競賽用投影片\n【目的】對外參賽展示技術成果\n【交付】比賽用PPT',
+    goal:'對外參賽展示技術成果',
+    note:'技術競賽用投影片\n【交付】比賽用PPT',
     updates:[
       {date:'2026-03-03T00:00:00Z',text:'已報名數字中國'},
       {date:'2026-04-04T00:00:00Z',text:'下一步：報名 MFPT / ISM'},
     ],
     created:'2026-03-03T00:00:00Z', updated:'2026-04-04T00:00:00Z' },
   { id:'a7_ng', title:'NG Action', stream:'An7', status:'進行中',
-    note:'產線NG智能行動指引系統',
+    goal:'產線NG智能行動指引系統',
+    note:'',
     updates:[],
     created:'2026-04-04T00:00:00Z', updated:'2026-04-04T00:00:00Z' },
 ];
@@ -390,6 +402,7 @@ function renderTasks() {
         <span class="tag tag-stream">${esc(t.stream)}</span>
         <span class="tag tag-status s-${t.status}">${t.status}</span>
       </div>
+      ${t.goal&&t.status!=='完成'?`<div class="task-goal"><span class="goal-label">目標</span><span>${esc(t.goal)}</span></div>`:''}
       ${stale?`<div class="stale-warn">⚠ ${staleText(t)}</div>`:''}
       ${latest?`<div class="latest-update"><span class="lu-date">${fmtShort(latest.date)}</span><span>${esc(latest.text)}</span></div>`:''}
       <div class="quick-row">
@@ -436,6 +449,7 @@ function openAddModal() {
   editingId=null;
   document.getElementById('modalTitle').textContent='新增任務';
   document.getElementById('fTitle').value='';
+  document.getElementById('fGoal').value='';
   document.getElementById('fNote').value='';
   document.getElementById('deleteBtn').style.display='none';
   renderStreamPicker(activeFilter!=='全部'?activeFilter:state.streams[0]);
@@ -448,6 +462,7 @@ function openEditModal(id) {
   editingId=id;
   document.getElementById('modalTitle').textContent='編輯任務';
   document.getElementById('fTitle').value=t.title;
+  document.getElementById('fGoal').value=t.goal||'';
   document.getElementById('fNote').value=t.note||'';
   document.getElementById('deleteBtn').style.display='';
   renderStreamPicker(t.stream);
@@ -465,9 +480,9 @@ function saveTask() {
   const now=new Date().toISOString();
   if(editingId){
     const t=state.tasks.find(x=>x.id===editingId);
-    if(t){t.title=title;t.stream=getSelectedStream();t.status=getSelectedStatus();t.note=document.getElementById('fNote').value.trim();t.updated=now;}
+    if(t){t.title=title;t.stream=getSelectedStream();t.status=getSelectedStatus();t.goal=document.getElementById('fGoal').value.trim();t.note=document.getElementById('fNote').value.trim();t.updated=now;}
   } else {
-    state.tasks.push({id:genId(),title,stream:getSelectedStream(),status:getSelectedStatus(),note:document.getElementById('fNote').value.trim(),updates:[],created:now,updated:now});
+    state.tasks.push({id:genId(),title,stream:getSelectedStream(),status:getSelectedStatus(),goal:document.getElementById('fGoal').value.trim(),note:document.getElementById('fNote').value.trim(),updates:[],created:now,updated:now});
   }
   saveState();render();closeModal('taskModal');
 }
