@@ -323,8 +323,31 @@ body {
 
 <script>
 // ─── Data ───
-const DEFAULT_STREAMS = ['開發','對接','導入','組內宣導','寫計畫'];
+const DEFAULT_STREAMS = ['An72','Debug','PPT','An7'];
 const STATUSES = ['待辦','進行中','等待中','卡住','完成'];
+const INITIAL_TASKS = [
+  { id:'a72_dfi', title:'DFI仿真', stream:'An72', status:'進行中',
+    note:'Torx批頭-螺絲介面力學仿真工具\n【目的】互動式仿真取代靜態計算\n【歷史】v4專家仿真→v5推薦矩陣→v6傾斜掃描→v7力學修正+中文化→v8動態引擎+UX redesign\n【交付】完整互動式HTML仿真工具\n【下一步】確認參賽人名→提交報名',
+    created:'2026-03-24T00:00:00Z', updated:'2026-04-04T00:00:00Z' },
+  { id:'a72_img', title:'實驗室圖像', stream:'An72', status:'進行中',
+    note:'批頭磨損與入牙點測高計算\n【目的】透過圖像分析批頭磨損狀況與入牙點位置\n【歷史】剛啟動\n【交付】磨損計算+入牙點測高功能\n【下一步】開發圖像分析功能',
+    created:'2026-04-04T00:00:00Z', updated:'2026-04-04T00:00:00Z' },
+  { id:'a72_listen', title:'ListenAgent', stream:'An72', status:'進行中',
+    note:'產線自動檔案清理工具（Torque資料）\n【目的】自動清理過期Torque資料避免磁碟爆滿\n【歷史】已完成開發+UserGuide+20fix版本\n【交付】部署到Vendor端',
+    created:'2026-03-21T00:00:00Z', updated:'2026-04-04T00:00:00Z' },
+  { id:'a72_cd', title:'成都分類', stream:'An72', status:'進行中',
+    note:'成都工站分類模型，交由金著樂執行\n【目的】確保有序流程推進\n【下一步】等DRI回傳數據進行調參',
+    created:'2026-04-04T00:00:00Z', updated:'2026-04-04T00:00:00Z' },
+  { id:'dbg_cgsf', title:'CGSF受力模型', stream:'Debug', status:'等待中',
+    note:'CGSF工站批頭受力分析pipeline（與DFI不同工站，不可混用）\n【目的】建立CGSF專屬磨損/壽命分析\n【歷史】已交付本地端驗證報告給DRI+IT\n【交付】全流程整合進PHM UI\n【下一步】等開發人員接全流程到PHM UI',
+    created:'2026-03-02T00:00:00Z', updated:'2026-04-04T00:00:00Z' },
+  { id:'ppt_comp', title:'比賽投影片', stream:'PPT', status:'進行中',
+    note:'技術競賽用投影片\n【目的】對外參賽展示技術成果\n【歷史】已報名數字中國\n【交付】比賽用PPT\n【下一步】報名MFPT/ISM',
+    created:'2026-03-03T00:00:00Z', updated:'2026-04-04T00:00:00Z' },
+  { id:'a7_ng', title:'NG Action', stream:'An7', status:'進行中',
+    note:'產線NG智能行動指引系統',
+    created:'2026-04-04T00:00:00Z', updated:'2026-04-04T00:00:00Z' },
+];
 
 let state = {
   tasks: [],
@@ -344,6 +367,11 @@ function loadState() {
       const s = JSON.parse(raw);
       state = { ...state, ...s };
       if (!state.streams || !state.streams.length) state.streams = [...DEFAULT_STREAMS];
+    } else {
+      // First time: load initial tasks
+      state.tasks = [...INITIAL_TASKS];
+      state.streams = [...DEFAULT_STREAMS];
+      saveState();
     }
   } catch(e) {}
 }
