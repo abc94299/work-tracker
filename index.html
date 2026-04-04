@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>工作追蹤器</title>
+<style>
+:root {
+  --bg: #0f1117;
+  --surface: #1a1d27;
+  --surface2: #242836;
+  --border: #2e3345;
+  --text: #e4e6ed;
+  --text2: #8b8fa3;
+  --accent: #6c8cff;
+  --accent2: #4a6aef;
+  --green: #34d399;
+  --yellow: #fbbf24;
+  --orange: #fb923c;
+  --red: #f87171;
+  --purple: #a78bfa;
+  --radius: 10px;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background: var(--bg); color: var(--text);
+  min-height: 100vh; overflow-x: hidden;
+}
+
+/* ─── Header ─── */
+.header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 16px; background: var(--surface);
+  border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 100;
+}
+.header h1 { font-size: 18px; font-weight: 600; }
+.header-actions { display: flex; gap: 8px; }
+.btn {
+  padding: 6px 14px; border-radius: 6px; border: 1px solid var(--border);
+  background: var(--surface2); color: var(--text); font-size: 13px;
+  cursor: pointer; transition: all .15s; white-space: nowrap;
+}
+.btn:hover { background: var(--border); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.btn.primary:hover { background: var(--accent2); }
+.btn.sm { padding: 4px 10px; font-size: 12px; }
+.btn.danger { color: var(--red); }
+.btn.danger:hover { background: rgba(248,113,113,.15); }
+
+/* ─── Sync bar ─── */
+.sync-bar {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 16px; background: var(--surface);
+  border-bottom: 1px solid var(--border); font-size: 12px; color: var(--text2);
+}
+.sync-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); flex-shrink: 0; }
+.sync-dot.off { background: var(--text2); }
+.sync-bar a { color: var(--accent); cursor: pointer; text-decoration: none; margin-left: auto; }
+
+/* ─── Filter tabs ─── */
+.filters {
+  display: flex; gap: 6px; padding: 10px 16px; overflow-x: auto;
+  -webkit-overflow-scrolling: touch; scrollbar-width: none;
+}
+.filters::-webkit-scrollbar { display: none; }
+.filter-tab {
+  padding: 5px 12px; border-radius: 20px; font-size: 13px;
+  background: var(--surface2); border: 1px solid var(--border);
+  color: var(--text2); cursor: pointer; white-space: nowrap; transition: all .15s;
+}
+.filter-tab.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+.filter-tab .count {
+  display: inline-block; background: rgba(255,255,255,.15); border-radius: 10px;
+  padding: 0 6px; margin-left: 4px; font-size: 11px;
+}
+.filter-tab.active .count { background: rgba(255,255,255,.25); }
+
+/* ─── Status summary ─── */
+.status-summary {
+  display: flex; gap: 12px; padding: 8px 16px; font-size: 12px; color: var(--text2);
+}
+.status-summary .stat { display: flex; align-items: center; gap: 4px; }
+.status-summary .dot { width: 8px; height: 8px; border-radius: 50%; }
+
+/* ─── Task list ─── */
+.task-list { padding: 8px 12px; }
+.task-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 12px 14px; margin-bottom: 8px;
+  transition: all .15s; cursor: pointer;
+}
+.task-card:hover { border-color: var(--accent); }
+.task-card:active { transform: scale(.99); }
+.task-top { display: flex; align-items: flex-start; gap: 10px; }
+.task-checkbox {
+  width: 20px; height: 20px; border-radius: 50%; border: 2px solid var(--border);
+  flex-shrink: 0; margin-top: 1px; cursor: pointer; transition: all .15s;
+  display: flex; align-items: center; justify-content: center;
+}
+.task-checkbox:hover { border-color: var(--accent); }
+.task-checkbox.done { background: var(--green); border-color: var(--green); }
+.task-checkbox.done::after { content: "✓"; color: #fff; font-size: 12px; font-weight: bold; }
+.task-title { flex: 1; font-size: 14px; line-height: 1.4; word-break: break-word; }
+.task-title.done { text-decoration: line-through; color: var(--text2); }
+.task-meta { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; margin-left: 30px; }
+.tag {
+  font-size: 11px; padding: 2px 8px; border-radius: 4px;
+  display: inline-flex; align-items: center; gap: 3px;
+}
+.tag.stream { background: rgba(108,140,255,.15); color: var(--accent); }
+.tag.status { font-weight: 500; }
+.tag.status-待辦 { background: rgba(139,143,163,.15); color: var(--text2); }
+.tag.status-進行中 { background: rgba(108,140,255,.15); color: var(--accent); }
+.tag.status-等待中 { background: rgba(251,191,36,.15); color: var(--yellow); }
+.tag.status-卡住 { background: rgba(248,113,113,.15); color: var(--red); }
+.tag.status-完成 { background: rgba(52,211,153,.15); color: var(--green); }
+.task-note {
+  margin-top: 6px; margin-left: 30px; font-size: 12px;
+  color: var(--text2); line-height: 1.4; word-break: break-word;
+}
+.task-date { font-size: 11px; color: var(--text2); margin-left: auto; flex-shrink: 0; }
+
+/* ─── Empty state ─── */
+.empty {
+  text-align: center; padding: 60px 20px; color: var(--text2);
+}
+.empty-icon { font-size: 48px; margin-bottom: 12px; }
+.empty p { font-size: 14px; }
+
+/* ─── FAB ─── */
+.fab {
+  position: fixed; bottom: 24px; right: 24px; width: 52px; height: 52px;
+  border-radius: 50%; background: var(--accent); color: #fff;
+  font-size: 28px; display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 4px 20px rgba(108,140,255,.4); cursor: pointer;
+  border: none; z-index: 90; transition: all .15s;
+}
+.fab:hover { transform: scale(1.05); background: var(--accent2); }
+
+/* ─── Modal ─── */
+.modal-overlay {
+  display: none; position: fixed; inset: 0; background: rgba(0,0,0,.6);
+  z-index: 200; justify-content: center; align-items: flex-end;
+}
+.modal-overlay.open { display: flex; }
+.modal {
+  background: var(--surface); width: 100%; max-width: 480px;
+  border-radius: 16px 16px 0 0; padding: 20px;
+  max-height: 85vh; overflow-y: auto;
+  animation: slideUp .2s ease;
+}
+@keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+.modal h2 { font-size: 16px; margin-bottom: 16px; }
+.form-group { margin-bottom: 14px; }
+.form-group label { display: block; font-size: 12px; color: var(--text2); margin-bottom: 5px; }
+.form-group input, .form-group textarea, .form-group select {
+  width: 100%; padding: 10px 12px; border-radius: 8px;
+  border: 1px solid var(--border); background: var(--surface2);
+  color: var(--text); font-size: 14px; outline: none; font-family: inherit;
+}
+.form-group input:focus, .form-group textarea:focus, .form-group select:focus {
+  border-color: var(--accent);
+}
+.form-group textarea { resize: vertical; min-height: 60px; }
+.form-actions { display: flex; gap: 8px; margin-top: 18px; }
+.form-actions .btn { flex: 1; padding: 10px; text-align: center; font-size: 14px; }
+
+/* Status picker */
+.status-picker { display: flex; gap: 6px; flex-wrap: wrap; }
+.status-option {
+  padding: 6px 12px; border-radius: 6px; font-size: 13px;
+  border: 1px solid var(--border); background: var(--surface2);
+  color: var(--text2); cursor: pointer; transition: all .15s;
+}
+.status-option.selected { border-color: var(--accent); color: var(--text); background: rgba(108,140,255,.1); }
+
+/* Stream picker */
+.stream-picker { display: flex; gap: 6px; flex-wrap: wrap; }
+.stream-option {
+  padding: 6px 12px; border-radius: 6px; font-size: 13px;
+  border: 1px solid var(--border); background: var(--surface2);
+  color: var(--text2); cursor: pointer; transition: all .15s;
+}
+.stream-option.selected { border-color: var(--accent); color: var(--accent); background: rgba(108,140,255,.1); }
+
+/* ─── Settings modal ─── */
+.settings-content { padding: 4px 0; }
+.settings-content .form-group { margin-bottom: 16px; }
+.settings-content .hint { font-size: 11px; color: var(--text2); margin-top: 4px; }
+.token-input-wrap { display: flex; gap: 6px; }
+.token-input-wrap input { flex: 1; }
+
+/* ─── Desktop ─── */
+@media (min-width: 640px) {
+  .header { padding: 14px 24px; }
+  .header h1 { font-size: 20px; }
+  .filters { padding: 12px 24px; }
+  .status-summary { padding: 8px 24px; }
+  .task-list { padding: 8px 20px; max-width: 720px; margin: 0 auto; }
+  .modal { border-radius: 16px; margin: auto; align-self: center; }
+  .fab { bottom: 32px; right: 32px; }
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>工作追蹤</h1>
+  <div class="header-actions">
+    <button class="btn sm" onclick="openSettings()">⚙️</button>
+    <button class="btn sm" onclick="syncToGist()" id="syncBtn" title="同步到 Gist">☁️</button>
+  </div>
+</div>
+
+<div class="sync-bar" id="syncBar">
+  <span class="sync-dot off" id="syncDot"></span>
+  <span id="syncStatus">未連線 Gist</span>
+  <a onclick="openSettings()">設定</a>
+</div>
+
+<div class="filters" id="filters"></div>
+<div class="status-summary" id="statusSummary"></div>
+<div class="task-list" id="taskList"></div>
+
+<button class="fab" onclick="openAddModal()">+</button>
+
+<!-- Task Modal -->
+<div class="modal-overlay" id="taskModal">
+  <div class="modal">
+    <h2 id="modalTitle">新增任務</h2>
+    <div class="form-group">
+      <label>任務名稱</label>
+      <input id="fTitle" placeholder="輸入任務名稱..." autofocus>
+    </div>
+    <div class="form-group">
+      <label>工作線</label>
+      <div class="stream-picker" id="fStream"></div>
+    </div>
+    <div class="form-group">
+      <label>狀態</label>
+      <div class="status-picker" id="fStatus"></div>
+    </div>
+    <div class="form-group">
+      <label>備註</label>
+      <textarea id="fNote" placeholder="備註、卡在哪、等誰..."></textarea>
+    </div>
+    <div class="form-actions">
+      <button class="btn" onclick="closeModal('taskModal')">取消</button>
+      <button class="btn danger" id="deleteBtn" onclick="deleteTask()" style="display:none">刪除</button>
+      <button class="btn primary" onclick="saveTask()">儲存</button>
+    </div>
+  </div>
+</div>
+
+<!-- Settings Modal -->
+<div class="modal-overlay" id="settingsModal">
+  <div class="modal">
+    <h2>同步設定</h2>
+    <div class="settings-content">
+      <div class="form-group">
+        <label>GitHub Personal Access Token</label>
+        <div class="token-input-wrap">
+          <input id="sToken" type="password" placeholder="ghp_xxxx...">
+          <button class="btn sm" onclick="toggleTokenVis()">👁</button>
+        </div>
+        <div class="hint">到 GitHub → Settings → Developer settings → Personal access tokens → 建立 token，scope 勾 <b>gist</b></div>
+      </div>
+      <div class="form-group">
+        <label>Gist ID（留空自動建立新的）</label>
+        <input id="sGistId" placeholder="貼上 Gist ID 或留空">
+        <div class="hint">同步後會自動填入</div>
+      </div>
+      <div class="form-group">
+        <label>工作線管理</label>
+        <input id="sStreams" placeholder="用逗號分隔，例如：開發,對接,導入">
+        <div class="hint">修改後新的工作線會立即生效</div>
+      </div>
+      <div class="form-actions">
+        <button class="btn" onclick="closeModal('settingsModal')">取消</button>
+        <button class="btn primary" onclick="saveSettings()">儲存</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── Data ───
+const DEFAULT_STREAMS = ['開發','對接','導入','組內宣導','寫計畫'];
+const STATUSES = ['待辦','進行中','等待中','卡住','完成'];
+
+let state = {
+  tasks: [],
+  streams: [...DEFAULT_STREAMS],
+  gistToken: '',
+  gistId: '',
+  lastSync: null,
+};
+let activeFilter = '全部';
+let editingId = null;
+
+// ─── Persistence ───
+function loadState() {
+  try {
+    const raw = localStorage.getItem('worktracker');
+    if (raw) {
+      const s = JSON.parse(raw);
+      state = { ...state, ...s };
+      if (!state.streams || !state.streams.length) state.streams = [...DEFAULT_STREAMS];
+    }
+  } catch(e) {}
+}
+function saveState() {
+  localStorage.setItem('worktracker', JSON.stringify(state));
+}
+
+// ─── Render ───
+function render() {
+  renderFilters();
+  renderSummary();
+  renderTasks();
+  renderSyncBar();
+}
+
+function renderFilters() {
+  const counts = { '全部': state.tasks.filter(t=>t.status!=='完成').length };
+  state.streams.forEach(s => {
+    counts[s] = state.tasks.filter(t => t.stream===s && t.status!=='完成').length;
+  });
+  const el = document.getElementById('filters');
+  el.innerHTML = ['全部', ...state.streams].map(s =>
+    `<div class="filter-tab${activeFilter===s?' active':''}" onclick="setFilter('${s}')">
+      ${s}<span class="count">${counts[s]||0}</span>
+    </div>`
+  ).join('');
+}
+
+function renderSummary() {
+  const active = getFilteredTasks();
+  const byStatus = {};
+  STATUSES.forEach(s => byStatus[s] = 0);
+  active.forEach(t => byStatus[t.status] = (byStatus[t.status]||0)+1);
+  const colors = { '待辦':'var(--text2)','進行中':'var(--accent)','等待中':'var(--yellow)','卡住':'var(--red)','完成':'var(--green)' };
+  document.getElementById('statusSummary').innerHTML = STATUSES.map(s =>
+    byStatus[s] ? `<div class="stat"><span class="dot" style="background:${colors[s]}"></span>${s} ${byStatus[s]}</div>` : ''
+  ).join('');
+}
+
+function getFilteredTasks() {
+  let tasks = state.tasks;
+  if (activeFilter !== '全部') tasks = tasks.filter(t => t.stream === activeFilter);
+  // Sort: active first (by status order), then completed at bottom
+  const order = { '卡住':0, '進行中':1, '等待中':2, '待辦':3, '完成':4 };
+  return [...tasks].sort((a,b) => (order[a.status]??3) - (order[b.status]??3));
+}
+
+function renderTasks() {
+  const tasks = getFilteredTasks();
+  const el = document.getElementById('taskList');
+  if (!tasks.length) {
+    el.innerHTML = `<div class="empty"><div class="empty-icon">📋</div><p>沒有任務</p></div>`;
+    return;
+  }
+  el.innerHTML = tasks.map(t => `
+    <div class="task-card" onclick="openEditModal('${t.id}')">
+      <div class="task-top">
+        <div class="task-checkbox${t.status==='完成'?' done':''}" onclick="event.stopPropagation();toggleDone('${t.id}')"></div>
+        <div class="task-title${t.status==='完成'?' done':''}">${esc(t.title)}</div>
+        <div class="task-date">${formatDate(t.updated)}</div>
+      </div>
+      <div class="task-meta">
+        <span class="tag stream">${esc(t.stream)}</span>
+        <span class="tag status status-${t.status}">${t.status}</span>
+      </div>
+      ${t.note ? `<div class="task-note">${esc(t.note)}</div>` : ''}
+    </div>
+  `).join('');
+}
+
+function renderSyncBar() {
+  const dot = document.getElementById('syncDot');
+  const status = document.getElementById('syncStatus');
+  if (state.gistToken && state.gistId) {
+    dot.className = 'sync-dot';
+    status.textContent = state.lastSync ? `已同步 ${formatDate(state.lastSync)}` : '已連線，尚未同步';
+  } else if (state.gistToken) {
+    dot.className = 'sync-dot';
+    status.textContent = '已設定 Token，同步時會自動建立 Gist';
+  } else {
+    dot.className = 'sync-dot off';
+    status.textContent = '未連線 Gist';
+  }
+}
+
+// ─── Filters ───
+function setFilter(f) { activeFilter = f; render(); }
+
+// ─── Task CRUD ───
+function openAddModal() {
+  editingId = null;
+  document.getElementById('modalTitle').textContent = '新增任務';
+  document.getElementById('fTitle').value = '';
+  document.getElementById('fNote').value = '';
+  document.getElementById('deleteBtn').style.display = 'none';
+  renderStreamPicker(activeFilter !== '全部' ? activeFilter : state.streams[0]);
+  renderStatusPicker('待辦');
+  openModal('taskModal');
+  setTimeout(() => document.getElementById('fTitle').focus(), 200);
+}
+
+function openEditModal(id) {
+  const t = state.tasks.find(x => x.id === id);
+  if (!t) return;
+  editingId = id;
+  document.getElementById('modalTitle').textContent = '編輯任務';
+  document.getElementById('fTitle').value = t.title;
+  document.getElementById('fNote').value = t.note || '';
+  document.getElementById('deleteBtn').style.display = '';
+  renderStreamPicker(t.stream);
+  renderStatusPicker(t.status);
+  openModal('taskModal');
+}
+
+function renderStreamPicker(selected) {
+  document.getElementById('fStream').innerHTML = state.streams.map(s =>
+    `<div class="stream-option${s===selected?' selected':''}" onclick="pickStream(this,'${s}')">${s}</div>`
+  ).join('');
+}
+function pickStream(el, s) {
+  el.parentElement.querySelectorAll('.stream-option').forEach(e => e.classList.remove('selected'));
+  el.classList.add('selected');
+}
+function getSelectedStream() {
+  const el = document.querySelector('#fStream .stream-option.selected');
+  return el ? el.textContent : state.streams[0];
+}
+
+function renderStatusPicker(selected) {
+  document.getElementById('fStatus').innerHTML = STATUSES.map(s =>
+    `<div class="status-option${s===selected?' selected':''}" onclick="pickStatus(this,'${s}')">${s}</div>`
+  ).join('');
+}
+function pickStatus(el, s) {
+  el.parentElement.querySelectorAll('.status-option').forEach(e => e.classList.remove('selected'));
+  el.classList.add('selected');
+}
+function getSelectedStatus() {
+  const el = document.querySelector('#fStatus .status-option.selected');
+  return el ? el.textContent : '待辦';
+}
+
+function saveTask() {
+  const title = document.getElementById('fTitle').value.trim();
+  if (!title) return;
+  const now = new Date().toISOString();
+  if (editingId) {
+    const t = state.tasks.find(x => x.id === editingId);
+    if (t) {
+      t.title = title;
+      t.stream = getSelectedStream();
+      t.status = getSelectedStatus();
+      t.note = document.getElementById('fNote').value.trim();
+      t.updated = now;
+    }
+  } else {
+    state.tasks.push({
+      id: genId(),
+      title,
+      stream: getSelectedStream(),
+      status: getSelectedStatus(),
+      note: document.getElementById('fNote').value.trim(),
+      created: now,
+      updated: now,
+    });
+  }
+  saveState(); render(); closeModal('taskModal');
+}
+
+function deleteTask() {
+  if (!editingId) return;
+  if (!confirm('確定刪除此任務？')) return;
+  state.tasks = state.tasks.filter(t => t.id !== editingId);
+  editingId = null;
+  saveState(); render(); closeModal('taskModal');
+}
+
+function toggleDone(id) {
+  const t = state.tasks.find(x => x.id === id);
+  if (!t) return;
+  t.status = t.status === '完成' ? '待辦' : '完成';
+  t.updated = new Date().toISOString();
+  saveState(); render();
+}
+
+// ─── Gist Sync ───
+async function syncToGist() {
+  if (!state.gistToken) { openSettings(); return; }
+  const btn = document.getElementById('syncBtn');
+  btn.textContent = '⏳'; btn.disabled = true;
+  try {
+    // If we have a gist ID, try to pull first
+    if (state.gistId) {
+      await pullFromGist();
+    }
+    // Then push
+    await pushToGist();
+    state.lastSync = new Date().toISOString();
+    saveState(); render();
+    btn.textContent = '✅';
+    setTimeout(() => { btn.textContent = '☁️'; }, 1500);
+  } catch(e) {
+    console.error(e);
+    alert('同步失敗：' + e.message);
+    btn.textContent = '☁️';
+  }
+  btn.disabled = false;
+}
+
+async function pullFromGist() {
+  const res = await fetch(`https://api.github.com/gists/${state.gistId}`, {
+    headers: { 'Authorization': `token ${state.gistToken}` }
+  });
+  if (!res.ok) throw new Error('讀取 Gist 失敗');
+  const data = await res.json();
+  const file = data.files['worktracker.json'];
+  if (!file) return;
+  const remote = JSON.parse(file.content);
+  // Merge: remote tasks win if updated more recently
+  mergeRemote(remote);
+  saveState();
+}
+
+function mergeRemote(remote) {
+  if (!remote || !remote.tasks) return;
+  const localMap = {};
+  state.tasks.forEach(t => localMap[t.id] = t);
+  const remoteMap = {};
+  remote.tasks.forEach(t => remoteMap[t.id] = t);
+  // Merge: keep the most recently updated version of each task
+  const allIds = new Set([...Object.keys(localMap), ...Object.keys(remoteMap)]);
+  const merged = [];
+  allIds.forEach(id => {
+    const l = localMap[id], r = remoteMap[id];
+    if (l && r) {
+      merged.push(new Date(l.updated) >= new Date(r.updated) ? l : r);
+    } else {
+      merged.push(l || r);
+    }
+  });
+  state.tasks = merged;
+  // Merge streams
+  if (remote.streams) {
+    const set = new Set([...state.streams, ...remote.streams]);
+    state.streams = [...set];
+  }
+}
+
+async function pushToGist() {
+  const payload = { tasks: state.tasks, streams: state.streams, lastSync: new Date().toISOString() };
+  const body = {
+    description: '工作追蹤器資料',
+    files: { 'worktracker.json': { content: JSON.stringify(payload, null, 2) } }
+  };
+  let res;
+  if (state.gistId) {
+    res = await fetch(`https://api.github.com/gists/${state.gistId}`, {
+      method: 'PATCH',
+      headers: { 'Authorization': `token ${state.gistToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+  } else {
+    body.public = false;
+    res = await fetch('https://api.github.com/gists', {
+      method: 'POST',
+      headers: { 'Authorization': `token ${state.gistToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+  }
+  if (!res.ok) throw new Error('寫入 Gist 失敗');
+  const data = await res.json();
+  if (!state.gistId) {
+    state.gistId = data.id;
+    saveState();
+  }
+}
+
+// ─── Settings ───
+function openSettings() {
+  document.getElementById('sToken').value = state.gistToken || '';
+  document.getElementById('sGistId').value = state.gistId || '';
+  document.getElementById('sStreams').value = state.streams.join(',');
+  openModal('settingsModal');
+}
+function saveSettings() {
+  state.gistToken = document.getElementById('sToken').value.trim();
+  state.gistId = document.getElementById('sGistId').value.trim();
+  const streams = document.getElementById('sStreams').value.split(',').map(s=>s.trim()).filter(Boolean);
+  if (streams.length) state.streams = streams;
+  saveState(); render(); closeModal('settingsModal');
+}
+function toggleTokenVis() {
+  const el = document.getElementById('sToken');
+  el.type = el.type === 'password' ? 'text' : 'password';
+}
+
+// ─── Modal ───
+function openModal(id) {
+  document.getElementById(id).classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+function closeModal(id) {
+  document.getElementById(id).classList.remove('open');
+  document.body.style.overflow = '';
+}
+// Close modal on overlay click
+document.querySelectorAll('.modal-overlay').forEach(el => {
+  el.addEventListener('click', e => { if (e.target === el) closeModal(el.id); });
+});
+
+// ─── Utils ───
+function genId() { return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+function esc(s) { const d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
+function formatDate(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  const now = new Date();
+  const diff = now - d;
+  if (diff < 60000) return '剛才';
+  if (diff < 3600000) return Math.floor(diff/60000) + '分鐘前';
+  if (diff < 86400000) return Math.floor(diff/3600000) + '小時前';
+  if (diff < 172800000) return '昨天';
+  return `${d.getMonth()+1}/${d.getDate()}`;
+}
+
+// ─── Init ───
+loadState();
+render();
+
+// Auto-sync on load if configured
+if (state.gistToken && state.gistId) {
+  syncToGist();
+}
+</script>
+</body>
+</html>
