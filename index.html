@@ -514,6 +514,8 @@ function fmtShort(iso){if(!iso)return'';const d=new Date(iso);return`${d.getMont
 // Password Lock
 async function hashPwd(pwd){const buf=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(pwd));return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');}
 function initLock(){
+  // 開發階段：跳過密碼鎖
+  enterApp(); return;
   const stored=localStorage.getItem('worktracker_pwd');
   if(!stored){document.getElementById('lockLabel').textContent='首次使用';document.getElementById('lockPwd').style.display='none';document.getElementById('lockEnterBtn').style.display='none';document.getElementById('lockSetup').style.display='block';}
   else{document.getElementById('lockPwd').focus();}
