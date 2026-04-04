@@ -205,6 +205,42 @@ body {
 </head>
 <body>
 
+<!-- ─── Lock Screen ─── -->
+<div id="lockScreen" style="
+  display:flex; position:fixed; inset:0; z-index:9999;
+  background:var(--bg); align-items:center; justify-content:center;
+">
+  <div style="text-align:center; width:280px;">
+    <div style="font-size:40px; margin-bottom:16px;">🔒</div>
+    <div style="font-size:16px; margin-bottom:20px; color:var(--text);">輸入密碼</div>
+    <input id="lockPwd" type="password" placeholder="密碼"
+      style="width:100%; padding:12px; border-radius:8px; border:1px solid var(--border);
+      background:var(--surface2); color:var(--text); font-size:16px; text-align:center; outline:none;"
+      onkeydown="if(event.key==='Enter') unlock()">
+    <button onclick="unlock()" style="
+      width:100%; margin-top:10px; padding:12px; border-radius:8px; border:none;
+      background:var(--accent); color:#fff; font-size:15px; cursor:pointer;
+    ">進入</button>
+    <div id="lockErr" style="color:var(--red); font-size:13px; margin-top:10px; display:none;">密碼錯誤</div>
+    <div id="lockSetup" style="display:none; margin-top:20px;">
+      <div style="font-size:13px; color:var(--text2); margin-bottom:8px;">首次使用，請設定密碼</div>
+      <input id="lockNewPwd" type="password" placeholder="設定密碼"
+        style="width:100%; padding:12px; border-radius:8px; border:1px solid var(--border);
+        background:var(--surface2); color:var(--text); font-size:16px; text-align:center; outline:none; margin-bottom:6px;"
+        onkeydown="if(event.key==='Enter') document.getElementById('lockNewPwd2').focus()">
+      <input id="lockNewPwd2" type="password" placeholder="再輸入一次"
+        style="width:100%; padding:12px; border-radius:8px; border:1px solid var(--border);
+        background:var(--surface2); color:var(--text); font-size:16px; text-align:center; outline:none;"
+        onkeydown="if(event.key==='Enter') setupPassword()">
+      <button onclick="setupPassword()" style="
+        width:100%; margin-top:10px; padding:12px; border-radius:8px; border:none;
+        background:var(--green); color:#fff; font-size:15px; cursor:pointer;
+      ">設定密碼</button>
+    </div>
+  </div>
+</div>
+
+<div id="appMain" style="display:none;">
 <div class="header">
   <h1>工作追蹤</h1>
   <div class="header-actions">
@@ -224,6 +260,7 @@ body {
 <div class="task-list" id="taskList"></div>
 
 <button class="fab" onclick="openAddModal()">+</button>
+</div><!-- end appMain -->
 
 <!-- Task Modal -->
 <div class="modal-overlay" id="taskModal">
@@ -632,14 +669,66 @@ function formatDate(iso) {
   return `${d.getMonth()+1}/${d.getDate()}`;
 }
 
-// ─── Init ───
-loadState();
-render();
-
-// Auto-sync on load if configured
-if (state.gistToken && state.gistId) {
-  syncToGist();
+// ─── Password Lock ───
+async function hashPwd(pwd) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(pwd));
+  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
 }
+
+function initLock() {
+  const stored = localStorage.getItem('worktracker_pwd');
+  if (!stored) {
+    // First time: show setup UI
+    document.getElementById('lockPwd').parentElement.querySelector('button').style.display = 'none';
+    document.getElementById('lockPwd').style.display = 'none';
+    document.getElementById('lockPwd').parentElement.querySelector('div[style*="輸入密碼"]')
+      ? document.querySelector('#lockScreen div[style*="font-size:16px"]').textContent = '首次使用' : null;
+    document.getElementById('lockSetup').style.display = 'block';
+    document.querySelector('#lockScreen div[style*="font-size:16px"]').textContent = '首次使用';
+    document.getElementById('lockPwd').style.display = 'none';
+    document.querySelector('#lockScreen > div > button').style.display = 'none';
+  } else {
+    document.getElementById('lockPwd').focus();
+  }
+}
+
+async function setupPassword() {
+  const p1 = document.getElementById('lockNewPwd').value;
+  const p2 = document.getElementById('lockNewPwd2').value;
+  if (!p1) return;
+  if (p1 !== p2) {
+    document.getElementById('lockErr').textContent = '兩次密碼不一致';
+    document.getElementById('lockErr').style.display = '';
+    return;
+  }
+  localStorage.setItem('worktracker_pwd', await hashPwd(p1));
+  enterApp();
+}
+
+async function unlock() {
+  const pwd = document.getElementById('lockPwd').value;
+  if (!pwd) return;
+  const hash = await hashPwd(pwd);
+  if (hash === localStorage.getItem('worktracker_pwd')) {
+    enterApp();
+  } else {
+    document.getElementById('lockErr').textContent = '密碼錯誤';
+    document.getElementById('lockErr').style.display = '';
+    document.getElementById('lockPwd').value = '';
+    document.getElementById('lockPwd').focus();
+  }
+}
+
+function enterApp() {
+  document.getElementById('lockScreen').style.display = 'none';
+  document.getElementById('appMain').style.display = '';
+  loadState();
+  render();
+  if (state.gistToken && state.gistId) syncToGist();
+}
+
+// ─── Init ───
+initLock();
 </script>
 </body>
 </html>
