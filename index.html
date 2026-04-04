@@ -294,6 +294,16 @@ const INITIAL_TASKS = [
     note:'',
     updates:[],
     created:'2026-04-04T00:00:00Z', updated:'2026-04-04T00:00:00Z' },
+  { id:'dbg_errcode', title:'ErrorCode DB轉檔', stream:'Debug', status:'卡住',
+    goal:'在無Python環境下將CGSF設備上的errorcode DB轉檔',
+    note:'DB存在CGSF設備上，目前沒有Python環境',
+    updates:[{date:'2026-04-04T00:00:00Z',text:'尚未找到無Python環境的DB轉檔方案'}],
+    created:'2026-04-04T00:00:00Z', updated:'2026-04-04T00:00:00Z' },
+  { id:'dbg_cbgdfi', title:'CBG/DFI 數據獲取', stream:'Debug', status:'進行中',
+    goal:'NPI設備數據遠端獲取pipeline',
+    note:'CBG和DFI設備都NPI階段不能遠端，需額外操作獲取數據',
+    updates:[{date:'2026-04-04T00:00:00Z',text:'CBG: hive collect已裝，下一步壓縮+alink獲取；DFI: 尚未安裝hive collect'}],
+    created:'2026-04-04T00:00:00Z', updated:'2026-04-04T00:00:00Z' },
 ];
 
 let state = { tasks:[], streams:[...DEFAULT_STREAMS], gistToken:'', gistId:'03ecdc9d3f928d55d70b4ea112e26a74', lastSync:null };
@@ -304,7 +314,7 @@ let editingId = null;
 function loadState() {
   try {
     const raw = localStorage.getItem('worktracker_v2');
-    if (raw) { const s = JSON.parse(raw); const defaultGist='03ecdc9d3f928d55d70b4ea112e26a74'; state = {...state,...s}; if(!state.gistId) state.gistId=defaultGist; if(!state.streams||!state.streams.length) state.streams=[...DEFAULT_STREAMS]; }
+    if (raw) { const s = JSON.parse(raw); const defaultGist='03ecdc9d3f928d55d70b4ea112e26a74'; state = {...state,...s}; if(!state.gistId) state.gistId=defaultGist; if(!state.streams||!state.streams.length) state.streams=[...DEFAULT_STREAMS]; const ids=new Set(state.tasks.map(t=>t.id)); INITIAL_TASKS.forEach(t=>{if(!ids.has(t.id))state.tasks.push(JSON.parse(JSON.stringify(t)));}); }
     else { state.tasks = JSON.parse(JSON.stringify(INITIAL_TASKS)); state.streams=[...DEFAULT_STREAMS]; saveState(); }
   } catch(e) { state.tasks = JSON.parse(JSON.stringify(INITIAL_TASKS)); saveState(); }
 }
