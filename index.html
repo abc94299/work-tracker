@@ -296,7 +296,7 @@ const INITIAL_TASKS = [
     created:'2026-04-04T00:00:00Z', updated:'2026-04-04T00:00:00Z' },
 ];
 
-let state = { tasks:[], streams:[...DEFAULT_STREAMS], gistToken:'', gistId:'', lastSync:null };
+let state = { tasks:[], streams:[...DEFAULT_STREAMS], gistToken:'', gistId:'03ecdc9d3f928d55d70b4ea112e26a74', lastSync:null };
 let activeFilter = '全部';
 let editingId = null;
 
@@ -490,7 +490,7 @@ function deleteTask(){if(!editingId)return;if(!confirm('確定刪除？'))return
 function toggleDone(id){const t=state.tasks.find(x=>x.id===id);if(!t)return;t.status=t.status==='完成'?'待辦':'完成';t.updated=new Date().toISOString();saveState();render();}
 
 // Gist Sync
-async function syncToGist(){if(!state.gistToken){openSettings();return;}const btn=document.getElementById('syncBtn');btn.textContent='⏳';btn.disabled=true;try{if(state.gistId)await pullFromGist();await pushToGist();state.lastSync=new Date().toISOString();saveState();render();btn.textContent='✅';setTimeout(()=>{btn.textContent='☁️';},1500);}catch(e){console.error(e);alert('同步失敗：'+e.message);btn.textContent='☁️';}btn.disabled=false;}
+async function syncToGist(){if(!state.gistToken){const t=prompt('請貼上 GitHub Classic Token（scope: gist）：');if(!t)return;state.gistToken=t.trim();saveState();renderSyncBar();}const btn=document.getElementById('syncBtn');btn.textContent='⏳';btn.disabled=true;try{if(state.gistId)await pullFromGist();await pushToGist();state.lastSync=new Date().toISOString();saveState();render();btn.textContent='✅';setTimeout(()=>{btn.textContent='☁️';},1500);}catch(e){console.error(e);alert('同步失敗：'+e.message);btn.textContent='☁️';}btn.disabled=false;}
 async function pullFromGist(){const res=await fetch(`https://api.github.com/gists/${state.gistId}`,{headers:{'Authorization':`token ${state.gistToken}`}});if(!res.ok)throw new Error('讀取失敗');const data=await res.json();const file=data.files['worktracker.json'];if(!file)return;const remote=JSON.parse(file.content);mergeRemote(remote);saveState();}
 function mergeRemote(remote){if(!remote||!remote.tasks)return;const lm={},rm={};state.tasks.forEach(t=>lm[t.id]=t);remote.tasks.forEach(t=>rm[t.id]=t);const all=new Set([...Object.keys(lm),...Object.keys(rm)]);const merged=[];all.forEach(id=>{const l=lm[id],r=rm[id];if(l&&r){const winner=new Date(l.updated)>=new Date(r.updated)?l:r;merged.push(winner);}else merged.push(l||r);});state.tasks=merged;if(remote.streams){state.streams=[...new Set([...state.streams,...remote.streams])];}}
 async function pushToGist(){const payload={tasks:state.tasks,streams:state.streams,lastSync:new Date().toISOString()};const body={description:'工作追蹤器',files:{'worktracker.json':{content:JSON.stringify(payload,null,2)}}};let res;if(state.gistId){res=await fetch(`https://api.github.com/gists/${state.gistId}`,{method:'PATCH',headers:{'Authorization':`token ${state.gistToken}`,'Content-Type':'application/json'},body:JSON.stringify(body)});}else{body.public=false;res=await fetch('https://api.github.com/gists',{method:'POST',headers:{'Authorization':`token ${state.gistToken}`,'Content-Type':'application/json'},body:JSON.stringify(body)});}if(!res.ok)throw new Error('寫入失敗');const data=await res.json();if(!state.gistId){state.gistId=data.id;saveState();}}
