@@ -304,7 +304,7 @@ let editingId = null;
 function loadState() {
   try {
     const raw = localStorage.getItem('worktracker_v2');
-    if (raw) { const s = JSON.parse(raw); state = {...state,...s}; if(!state.streams||!state.streams.length) state.streams=[...DEFAULT_STREAMS]; }
+    if (raw) { const s = JSON.parse(raw); const defaultGist='03ecdc9d3f928d55d70b4ea112e26a74'; state = {...state,...s}; if(!state.gistId) state.gistId=defaultGist; if(!state.streams||!state.streams.length) state.streams=[...DEFAULT_STREAMS]; }
     else { state.tasks = JSON.parse(JSON.stringify(INITIAL_TASKS)); state.streams=[...DEFAULT_STREAMS]; saveState(); }
   } catch(e) { state.tasks = JSON.parse(JSON.stringify(INITIAL_TASKS)); saveState(); }
 }
