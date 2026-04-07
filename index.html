@@ -241,6 +241,7 @@ body { font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif
 <div class="header">
   <h1>工作追蹤</h1>
   <div class="header-actions">
+    <button class="btn sm" onclick="openTrash()" title="回收站">🗑️</button>
     <button class="btn sm" onclick="openSettings()">⚙️</button>
     <button class="btn sm primary" onclick="saveToGist()" id="saveBtn" title="保存到雲端（覆蓋）">💾</button>
     <button class="btn sm" onclick="syncToGist()" id="syncBtn" title="同步（雙向合併）">☁️</button>
@@ -272,6 +273,16 @@ body { font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif
     <button class="btn" onclick="closeModal('taskModal')">取消</button>
     <button class="btn danger" id="deleteBtn" onclick="deleteTask()" style="display:none">刪除</button>
     <button class="btn primary" onclick="saveTask()">儲存</button>
+  </div>
+</div></div>
+
+<!-- Trash Modal -->
+<div class="modal-overlay" id="trashModal"><div class="modal">
+  <h2>回收站</h2>
+  <div id="trashList"></div>
+  <div class="form-actions" style="margin-top:14px">
+    <button class="btn" onclick="closeModal('trashModal')">關閉</button>
+    <button class="btn danger" onclick="emptyTrash()">清空回收站</button>
   </div>
 </div></div>
 
@@ -367,7 +378,7 @@ const INITIAL_TASKS = [
     created:'2026-04-04T00:00:00Z', updated:'2026-04-04T00:00:00Z' },
 ];
 
-let state = { tasks:[], streams:[...DEFAULT_STREAMS], gistToken:'', gistId:'03ecdc9d3f928d55d70b4ea112e26a74', lastSync:null, deletedIds:[] };
+let state = { tasks:[], streams:[...DEFAULT_STREAMS], gistToken:'', gistId:'03ecdc9d3f928d55d70b4ea112e26a74', lastSync:null, deletedIds:[], trash:[] };
 let activeFilter = '全部';
 let editingId = null;
 
@@ -615,7 +626,11 @@ function saveTask() {
   }
   saveState();render();closeModal('taskModal');
 }
-function deleteTask(){if(!editingId)return;if(!confirm('確定刪除？'))return;if(!state.deletedIds)state.deletedIds=[];state.deletedIds.push(editingId);state.tasks=state.tasks.filter(t=>t.id!==editingId);editingId=null;saveState();render();closeModal('taskModal');}
+function deleteTask(){if(!editingId)return;if(!confirm('確定刪除？（可從回收站還原）'))return;const t=state.tasks.find(x=>x.id===editingId);if(t){if(!state.trash)state.trash=[];t._deletedAt=new Date().toISOString();state.trash.push(t);}if(!state.deletedIds)state.deletedIds=[];state.deletedIds.push(editingId);state.tasks=state.tasks.filter(t=>t.id!==editingId);editingId=null;saveState();render();closeModal('taskModal');}
+function restoreTask(id){if(!state.trash)return;const idx=state.trash.findIndex(t=>t.id===id);if(idx===-1)return;const t=state.trash.splice(idx,1)[0];delete t._deletedAt;state.tasks.push(t);state.deletedIds=(state.deletedIds||[]).filter(x=>x!==id);saveState();render();renderTrash();}
+function emptyTrash(){if(!confirm('確定清空回收站？此操作無法復原'))return;state.trash=[];saveState();renderTrash();}
+function renderTrash(){const el=document.getElementById('trashList');if(!el)return;const trash=state.trash||[];if(!trash.length){el.innerHTML='<div style="text-align:center;padding:30px;color:var(--text2)">回收站是空的</div>';return;}el.innerHTML=trash.map(t=>`<div style="display:flex;align-items:center;gap:10px;padding:10px;border-bottom:1px solid var(--border)"><div style="flex:1"><div style="font-size:14px;font-weight:500">${esc(t.title)}</div><div style="font-size:11px;color:var(--text2)">刪除於 ${formatDate(t._deletedAt)} · ${esc(t.stream)}</div></div><button class="btn sm" onclick="restoreTask('${t.id}')">還原</button></div>`).join('');}
+function openTrash(){renderTrash();openModal('trashModal');}
 function toggleDone(id){const t=state.tasks.find(x=>x.id===id);if(!t)return;t.status=t.status==='完成'?'待辦':'完成';t.updated=new Date().toISOString();saveState();render();}
 
 // Gist Sync
